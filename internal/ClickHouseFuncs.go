@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	clickhouseConn clickhouse.Conn
+	ClickhouseConn clickhouse.Conn
 
 	MapOfCities map[string]CityType
 )
@@ -32,6 +32,8 @@ func InitClickhouse() error {
 	password := os.Getenv("CLICKHOUSE_PASSWORD")
 	database := os.Getenv("CLICKHOUSE_DB")
 
+	fmt.Println("ClickHouse env variables:", host, port, user, password, database)
+
 	if host == "" || port == "" || user == "" || password == "" || database == "" {
 		return fmt.Errorf("ClickHouse environment variables are not set properly")
 	}
@@ -49,7 +51,7 @@ func InitClickhouse() error {
 		return fmt.Errorf("failed to connect to ClickHouse: %v", err)
 	}
 
-	clickhouseConn = conn
+	ClickhouseConn = conn
 
 	if err := createTables(); err != nil {
 		return fmt.Errorf("failed to create tables: %v", err)
@@ -84,12 +86,12 @@ func createTables() error {
 	}
 
 	for _, query := range queries {
-		if err := clickhouseConn.Exec(ctx, query); err != nil {
+		if err := ClickhouseConn.Exec(ctx, query); err != nil {
 			return fmt.Errorf("failed to create table: %v", err)
 		}
 	}
 
-	rows, err := clickhouseConn.Query(ctx, "SELECT city, lat, lon FROM cities")
+	rows, err := ClickhouseConn.Query(ctx, "SELECT city, lat, lon FROM cities")
 	if err != nil {
 		return fmt.Errorf("initClickHouse: select cities: %w", err)
 	}
@@ -120,7 +122,7 @@ func addCitiesToDB(cities []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	batch, err := clickhouseConn.PrepareBatch(ctx, "INSERT INTO cities (city, lat, lon)")
+	batch, err := ClickhouseConn.PrepareBatch(ctx, "INSERT INTO cities (city, lat, lon)")
 	if err != nil {
 		return fmt.Errorf("addCitiesToDB: prepare batch: %w", err)
 	}
@@ -146,7 +148,7 @@ func insertWeatherData(cities map[string]CityType) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	batch, err := clickhouseConn.PrepareBatch(ctx, "INSERT INTO weather_metrics (timestamp, city, temp, app_temp, pressure, wind_speed, wind_deg)")
+	batch, err := ClickhouseConn.PrepareBatch(ctx, "INSERT INTO weather_metrics (timestamp, city, temp, app_temp, pressure, wind_speed, wind_deg)")
 	if err != nil {
 		return fmt.Errorf("insertWeatherResponses: prepare batch: %w", err)
 	}
