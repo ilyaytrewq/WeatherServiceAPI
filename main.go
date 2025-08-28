@@ -23,7 +23,7 @@ func main() {
 		fmt.Printf( "Connected to Postgres successfully: %v", weatherAPI.DB)
 	}
 
-	http.HandleFunc("/", weatherAPI.Handler)
+	http.HandleFunc("/v1", weatherAPI.Handler)
 	fmt.Println("Starting server on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		fmt.Printf("Server failed to start: %v\n", err)

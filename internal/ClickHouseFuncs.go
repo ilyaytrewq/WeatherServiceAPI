@@ -57,6 +57,8 @@ func InitClickhouse() error {
 		return fmt.Errorf("failed to create tables: %v", err)
 	}
 
+	startPeriodicTask(10)
+
 	return nil
 }
 
@@ -179,4 +181,23 @@ func insertWeatherData(cities map[string]CityType) error {
 	}
 
 	return nil
+}
+
+
+
+func startPeriodicTask(intervalSeconds int) {
+	log.Println("start_periodic_task")
+	
+	go func() {
+		ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
+		defer ticker.Stop()
+		
+		for range ticker.C {
+			if err := insertWeatherData(MapOfCities); err != nil {
+				log.Printf("Periodic task error: %v", err)
+			} else {
+				log.Println("Periodic task: Weather data inserted successfully")
+			}
+		}
+	}()
 }

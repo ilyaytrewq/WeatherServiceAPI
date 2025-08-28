@@ -72,6 +72,10 @@ func createUser(r *http.Request) error {
 		return fmt.Errorf("createUser: password hashing error: %w", err)
 	}
 
+	if err := addCitiesToDB(userData.Cities); err != nil {
+		return fmt.Errorf("createUser: addCitiesToDB error: %w", err)
+	}
+
 	_, err = DB.Exec(`
 		INSERT INTO users (email, password, cities)
 		VALUES ($1, $2, $3)
@@ -104,6 +108,10 @@ func changeUserData(r *http.Request) error {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(req.Password)); err != nil {
 		return errors.New("changeUserData: incorrect password")
+	}
+
+	if err := addCitiesToDB(req.Cities); err != nil {
+		return fmt.Errorf("changeUserData: addCitiesToDB error: %w", err)
 	}
 
 	_, err = DB.Exec("UPDATE users SET cities = $1 WHERE email = $2", pq.Array(req.Cities), req.Email)
