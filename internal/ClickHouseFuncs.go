@@ -13,7 +13,7 @@ import (
 var (
 	ClickhouseConn clickhouse.Conn
 
-	MapOfCities map[string]CityType
+	MapOfCities map[string]CityType = make(map[string]CityType)
 )
 
 // Functions to interact with ClickHouse
@@ -23,7 +23,6 @@ type CityType struct {
 	Lat  float64 `json:"lat"`
 	Lon  float64 `json:"lon"`
 }
-
 
 func InitClickhouse() error {
 	host := os.Getenv("CLICKHOUSE_HOST")
@@ -57,7 +56,7 @@ func InitClickhouse() error {
 		return fmt.Errorf("failed to create tables: %v", err)
 	}
 
-	startPeriodicTask(10)
+	startPeriodicTask(30)
 
 	return nil
 }
@@ -65,15 +64,15 @@ func InitClickhouse() error {
 func createTables() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS weather_metrics ( 
                 timestamp Datetime, 
                 city String,
-                temp Float32,
-                app_temp Float32,
+                temp Float64,
+                app_temp Float64,
                 pressure Int16,
-                wind_speed Float32,
+                wind_speed Float64,
                 wind_deg Int16
             ) ENGINE = MergeTree()
             PARTITION BY toYYYYMM(timestamp)
@@ -81,8 +80,8 @@ func createTables() error {
 
 		`CREATE TABLE IF NOT EXISTS cities(
 			city String,
-			lat Float64,
-			lon Float64
+			lat float64,
+			lon float64
 		) ENGINE = MergeTree()
 		ORDER BY (city)`,
 	}
@@ -129,8 +128,11 @@ func addCitiesToDB(cities []string) error {
 		return fmt.Errorf("addCitiesToDB: prepare batch: %w", err)
 	}
 
+	tmpMapOfCities := make(map[string]CityType)
+
 	for _, cityName := range cities {
 		city, err := GetCoordinates(cityName)
+		tmpMapOfCities[cityName] = city
 		if err != nil {
 			return fmt.Errorf("addCitiesToDB: get coordinates for city %s: %w", cityName, err)
 		}
@@ -142,6 +144,11 @@ func addCitiesToDB(cities []string) error {
 	if err := batch.Send(); err != nil {
 		return fmt.Errorf("addCitiesToDB: send batch: %w", err)
 	}
+
+	for k, v := range tmpMapOfCities {
+		MapOfCities[k] = v
+	}
+	log.Printf("addCitiesToDB: added %d cities to DB", len(cities))
 
 	return nil
 }
@@ -183,15 +190,13 @@ func insertWeatherData(cities map[string]CityType) error {
 	return nil
 }
 
-
-
 func startPeriodicTask(intervalSeconds int) {
 	log.Println("start_periodic_task")
-	
+
 	go func() {
 		ticker := time.NewTicker(time.Duration(intervalSeconds) * time.Second)
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
 			if err := insertWeatherData(MapOfCities); err != nil {
 				log.Printf("Periodic task error: %v", err)

@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	apiKey = os.Getenv("API_WEATHER_KEY	")
+	apiKey = os.Getenv("API_WEATHER_KEY")
 
 )
 
@@ -42,6 +42,9 @@ func GetCoordinates(cityName string) (CityType, error) {
 	}
 	defer resp.Body.Close()
 
+	fmt.Println("URL: ", url)
+	fmt.Println("GetCoordinates: ", resp)
+
 	if resp.StatusCode != http.StatusOK {
 		return CityType{}, errors.New("GetCoordinates: non-200 response from API")
 	}
@@ -51,12 +54,13 @@ func GetCoordinates(cityName string) (CityType, error) {
 		return CityType{}, fmt.Errorf("GetWeather: read body error: %w", err)
 	}
 
-	var city CityType
+	fmt.Println("GetCoordinates: data ", string(data))
+	var city []CityType
 	if err := json.Unmarshal(data, &city); err != nil {
 		return CityType{}, fmt.Errorf("GetCoordinates: decode error: %w", err)
 	}
 
-	return city, nil
+	return city[0], nil
 }
 
 func GetWeather(city CityType) (weatherAPIResp, error) {

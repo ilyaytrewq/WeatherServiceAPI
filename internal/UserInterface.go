@@ -63,6 +63,7 @@ func createUser(r *http.Request) error {
 	if err := json.NewDecoder(r.Body).Decode(&userData); err != nil {
 		return fmt.Errorf("createUser: decode error: %w", err)
 	}
+	fmt.Println("createUser: received user data:", userData)
 	if userData.Email == "" || userData.Password == "" {
 		return errors.New("createUser: email and password are required")
 	}
