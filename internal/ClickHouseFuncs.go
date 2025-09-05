@@ -20,8 +20,8 @@ var (
 
 type CityType struct {
 	Name string  `json:"name"`
-	Lat  float64 `json:"lat"`
-	Lon  float64 `json:"lon"`
+	Lat  float32 `json:"lat"`
+	Lon  float32 `json:"lon"`
 }
 
 func InitClickhouse() error {
@@ -69,10 +69,10 @@ func createTables() error {
 		`CREATE TABLE IF NOT EXISTS weather_metrics ( 
                 timestamp Datetime, 
                 city String,
-                temp Float64,
-                app_temp Float64,
+                temp Float32,
+                app_temp Float32,
                 pressure Int16,
-                wind_speed Float64,
+                wind_speed Float32,
                 wind_deg Int16
             ) ENGINE = MergeTree()
             PARTITION BY toYYYYMM(timestamp)
@@ -80,8 +80,8 @@ func createTables() error {
 
 		`CREATE TABLE IF NOT EXISTS cities(
 			city String,
-			lat float64,
-			lon float64
+			lat Float32,
+			lon Float32
 		) ENGINE = MergeTree()
 		ORDER BY (city)`,
 	}
@@ -100,7 +100,7 @@ func createTables() error {
 
 	for rows.Next() {
 		var city string
-		var lat, lon float64
+		var lat, lon float32
 
 		if err := rows.Scan(&city, &lat, &lon); err != nil {
 			log.Printf("initClickHouse: scan error: %v", err)
