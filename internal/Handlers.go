@@ -45,7 +45,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"message": "User data updated successfully"}`))
 
 	 case "/v1/getUserData":
-        if r.Method != http.MethodGet {
+        if r.Method != http.MethodPost {
             log.Printf("Handler: wrong method %s for %s", r.Method, r.URL.Path)
             http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
             return
