@@ -1,3 +1,4 @@
+// ClickHouseFuncs.go
 package weatherservice
 
 import (
@@ -12,16 +13,13 @@ import (
 
 var (
 	ClickhouseConn clickhouse.Conn
-
-	MapOfCities map[string]CityType = make(map[string]CityType)
+	MapOfCities    map[string]CityType = make(map[string]CityType)
 )
-
-// Functions to interact with ClickHouse
 
 type CityType struct {
 	Name string  `json:"name"`
-	Lat  float32 `json:"lat"`
-	Lon  float32 `json:"lon"`
+	Lat  float64 `json:"lat"`
+	Lon  float64 `json:"lon"`
 }
 
 func InitClickhouse() error {
@@ -31,7 +29,7 @@ func InitClickhouse() error {
 	password := os.Getenv("CLICKHOUSE_PASSWORD")
 	database := os.Getenv("CLICKHOUSE_DB")
 
-	fmt.Println("ClickHouse env variables:", host, port, user, password, database)
+	log.Printf("InitClickhouse: env host=%s port=%s user=%s db=%s", host, port, user, database)
 
 	if host == "" || port == "" || user == "" || password == "" || database == "" {
 		return fmt.Errorf("ClickHouse environment variables are not set properly")
@@ -57,6 +55,7 @@ func InitClickhouse() error {
 	}
 
 	startPeriodicTask(30)
+	log.Println("InitClickhouse: ready and periodic task started")
 
 	return nil
 }
@@ -80,8 +79,8 @@ func createTables() error {
 
 		`CREATE TABLE IF NOT EXISTS cities(
 			city String,
-			lat Float32,
-			lon Float32
+			lat Float64,
+			lon Float64
 		) ENGINE = MergeTree()
 		ORDER BY (city)`,
 	}
@@ -100,7 +99,7 @@ func createTables() error {
 
 	for rows.Next() {
 		var city string
-		var lat, lon float32
+		var lat, lon float64
 
 		if err := rows.Scan(&city, &lat, &lon); err != nil {
 			log.Printf("initClickHouse: scan error: %v", err)
@@ -132,10 +131,11 @@ func addCitiesToDB(cities []string) error {
 
 	for _, cityName := range cities {
 		city, err := GetCoordinates(cityName)
-		tmpMapOfCities[cityName] = city
 		if err != nil {
 			return fmt.Errorf("addCitiesToDB: get coordinates for city %s: %w", cityName, err)
 		}
+		tmpMapOfCities[cityName] = city
+
 		if err := batch.Append(city.Name, city.Lat, city.Lon); err != nil {
 			return fmt.Errorf("addCitiesToDB: append to batch: %w", err)
 		}
@@ -148,7 +148,7 @@ func addCitiesToDB(cities []string) error {
 	for k, v := range tmpMapOfCities {
 		MapOfCities[k] = v
 	}
-	log.Printf("addCitiesToDB: added %d cities to DB", len(cities))
+	log.Printf("addCitiesToDB: added %d cities to DB and map", len(tmpMapOfCities))
 
 	return nil
 }
