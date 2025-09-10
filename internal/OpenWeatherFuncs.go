@@ -24,11 +24,11 @@ type weatherAPIResp struct {
 	Main struct {
 		Temp      float32 `json:"temp"`
 		FeelsLike float32 `json:"feels_like"`
-		Pressure  int64   `json:"pressure"`
+		Pressure  int16   `json:"pressure"`
 	} `json:"main"`
 	Wind struct {
 		Speed float32 `json:"speed"`
-		Deg   int64   `json:"deg"`
+		Deg   int16   `json:"deg"`
 	} `json:"wind"`
 }
 
