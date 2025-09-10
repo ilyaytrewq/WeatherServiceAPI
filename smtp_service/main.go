@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
-	"strconv"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	gomail "gopkg.in/gomail.v2"
@@ -29,9 +29,19 @@ func main() {
 		log.Fatal("RABBITMQ_URL not set")
 	}
 
-	conn, err := amqp.Dial(rabbitURL)
-	if err != nil {
-		log.Fatalf("dial rabbit: %v", err)
+	// Подключаемся к RabbitMQ с ретраями
+	var conn *amqp.Connection
+	var err error
+	for i := 0; i < 10; i++ {
+		conn, err = amqp.Dial(rabbitURL)
+		if err == nil {
+			break
+		}
+		log.Printf("RabbitMQ not ready, retry in 2s... (%d/10)", i+1)
+		time.Sleep(2 * time.Second)
+	}
+	if conn == nil {
+		log.Fatalf("could not connect to rabbit after retries: %v", err)
 	}
 	defer conn.Close()
 
@@ -42,6 +52,18 @@ func main() {
 	defer ch.Close()
 
 	queueName := "email_queue"
+
+	_, err = ch.QueueDeclare(
+		queueName,
+		true,  // durable
+		false, // auto-delete
+		false, // exclusive
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		log.Fatalf("declare queue: %v", err)
+	}
 
 	if err := ch.Qos(5, 0, false); err != nil {
 		log.Fatalf("qos: %v", err)
@@ -59,7 +81,7 @@ func main() {
 	}
 	smtpUser := os.Getenv("SMTP_USER")
 	smtpPass := os.Getenv("SMTP_PASSWORD")
-	fromAddr := os.Getenv("SMTP_FROM") 
+	fromAddr := os.Getenv("SMTP_FROM")
 
 	workerCount := 3
 	for i := 0; i < workerCount; i++ {
@@ -77,7 +99,7 @@ func main() {
 				cancel()
 				if err != nil {
 					log.Printf("worker %d: send mail failed for %s: %v", id, t.To, err)
-					d.Nack(false, false)
+					d.Nack(false, true) // повторим сообщение
 					continue
 				}
 				d.Ack(false)
@@ -86,6 +108,7 @@ func main() {
 		}(i)
 	}
 
+	// ждём сигнала для graceful shutdown
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
 	s := <-sigc
@@ -116,5 +139,3 @@ func sendMail(ctx context.Context, host string, port int, user, pass, from strin
 		return err
 	}
 }
-
-
