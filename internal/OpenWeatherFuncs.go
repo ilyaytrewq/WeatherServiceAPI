@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 const (
@@ -34,7 +35,7 @@ type weatherAPIResp struct {
 
 func GetCoordinates(cityName string) (CityType, error) {
 	url := fmt.Sprintf("%s?q=%s&limit=1&appid=%s", apiCoordinatesURL, cityName, apiKey)
-	log.Printf("GetCoordinates: URL=%s", url)
+	log.Printf("GetCoordinates: URL=%s", strings.Replace(url, apiKey, "***", 1))
 
 	resp, err := http.Get(url)
 	if err != nil {

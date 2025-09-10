@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"time"
+	"sync"
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -14,6 +15,7 @@ import (
 var (
 	ClickhouseConn clickhouse.Conn
 	MapOfCities    map[string]CityType = make(map[string]CityType)
+	mapMu          sync.RWMutex
 )
 
 type CityType struct {
@@ -130,6 +132,11 @@ func addCitiesToDB(cities []string) error {
 	tmpMapOfCities := make(map[string]CityType)
 
 	for _, cityName := range cities {
+		_, ok := MapOfCities[cityName]
+		if ok {
+			continue
+		}
+
 		city, err := GetCoordinates(cityName)
 		if err != nil {
 			return fmt.Errorf("addCitiesToDB: get coordinates for city %s: %w", cityName, err)
@@ -156,7 +163,7 @@ func addCitiesToDB(cities []string) error {
 func insertWeatherData(cities map[string]CityType) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+	
 	batch, err := ClickhouseConn.PrepareBatch(ctx, "INSERT INTO weather_metrics (timestamp, city, temp, app_temp, pressure, wind_speed, wind_deg)")
 	if err != nil {
 		return fmt.Errorf("insertWeatherResponses: prepare batch: %w", err)
